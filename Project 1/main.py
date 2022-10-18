@@ -1,34 +1,12 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 import os
 import sys
+import glob
 
 def rgb2gray(rgb):
     return np.dot(rgb[...,:3], [0.299, 0.587, 0.114])
-
-# Read source and mask (if exists) for a given id
-def Read(id, path = ""):
-    source = plt.imread(path + "image_" + id + ".jpg") / 255
-    maskPath = path + "mask_" + id + ".jpg"
-    
-    if os.path.isfile(maskPath):
-        mask = plt.imread(maskPath)
-        assert(mask.shape == source.shape), 'size of mask and image does not match'
-        mask = (mask > 128)[:, :, 0].astype(int)
-    else:
-        mask = np.zeros_like(source)[:, :, 0].astype(int)
-
-    return source, mask
-
-def ComputeEngery(input) :
-    inSize = input.shape
-    energyM = np.zeros((inSize[0], inSize[1]))
-
-    for i in range(inSize[0]) :
-        for j in range(inSize[1]) :
-            energyM[i][j] = abs(input[i][j] - input[(i - 1) % inSize[0]][j]) + abs(input[i][j] - input[i][(j + 1) % inSize[1]])
-    
-    return energyM
 
 def ComputeM(energy) :
     inSize = energy.shape
@@ -57,7 +35,7 @@ def ComputeGradient(input) :
     shiftL = np.roll(input, -1, axis = 1)
 
     energy = np.abs(input - shiftD) + np.abs(input - shiftL)
-    plt.imsave("Results/test2.jpg", energy)
+    #plt.imsave("Results/test2.jpg", energy)
 
     return energy
 
@@ -90,16 +68,29 @@ def FindSeam(input) :
     seam = [int(x) for x in seam]
     return seam
 
-def ColorSeem(input, seam) :
+def ColorSeem(input, seam, name, count) :
     t = input.copy()
     for i in range(input.shape[0]) :
         t[i][seam[i]] = 1
     
-    plt.imsave("Results/test.jpg", t)
-        
-    return t
+    padded = np.pad(t, pad_width=((0, 0), (0, count), (0, 0)))
+    plt.imsave(outputDir + 'Frames/' + name + '/frame_' + str(count).zfill(4) + '.jpg', padded)
 
-def SeamCarve(input, ratio):
+    return padded
+
+def createVideo(name, size) :
+    video = cv2.VideoWriter(outputDir + name + '.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 15, (size[1], size[0]))
+
+    frames = glob.glob(outputDir + 'Frames/' + name + '/*.jpg')
+    frames.sort()
+    
+    for frame in frames :
+        img = cv2.imread(frame)
+        video.write(img)
+    
+    video.release()
+
+def SeamCarve(input, ratio, name):
 
     original = input.copy()
     # Main seam carving function. This is done in three main parts: 1)
@@ -118,12 +109,14 @@ def SeamCarve(input, ratio):
         M = ComputeM(energy)
         newImage = np.zeros((inSize[0], inSize[1] - 1, 3))
         seam = FindSeam(M) 
-        ColorSeem(input, seam)
+        ColorSeem(input, seam, name, x)
+
         for i in range(inSize[0]) :
             newImage[i] = np.concatenate((input[i][:(seam[i])], input[i][(seam[i] + 1):]))
 
-        input = newImage.copy()    
-
+        input = newImage.copy()
+    
+    createVideo(name, size)
     size = (input.shape[1], input.shape[0])
     return input, size
 
@@ -143,6 +136,23 @@ image_1 = sys.argv[1]
 image_2 = sys.argv[2]
 ratio = float(sys.argv[3]); # Reduction ratio for height and width
 
+img1_path = outputDir + 'Frames/' + image_1.split('.')[0]
+img2_path = outputDir + 'Frames/' + image_2.split('.')[0]
+img1_h_path = outputDir + 'Frames/' + image_1.split('.')[0] + '_height'
+img2_h_path = outputDir + 'Frames/' + image_2.split('.')[0] + '_height'
+
+if not os.path.exists(img1_path) :
+    os.mkdir(img1_path)
+
+if not os.path.exists(img2_path) :
+    os.mkdir(img2_path)
+
+if not os.path.exists(img1_h_path) :
+    os.mkdir(img1_h_path)
+
+if not os.path.exists(img2_h_path) :
+    os.mkdir(img2_h_path)
+
 image1 = plt.imread(image_1) / 255
 image2 = plt.imread(image_2) / 255
 
@@ -152,16 +162,16 @@ image2_rot = np.rot90(image2)
 # SEAM CARVING/ IMAGE RETARGETING
 
 # WIDTH REDUCTION
-output1, size1 = SeamCarve(image1, ratio)
-output2, size2 = SeamCarve(image2, ratio)
+output1, size1 = SeamCarve(image1, ratio, image_1.split('.')[0])
+output2, size2 = SeamCarve(image2, ratio, image_2.split('.')[0])
 
 # Saving the results
 plt.imsave(outputDir + "/" + image_1.split('.')[0] + "_result_" + str(size1[0]) + "x" + str(size1[1]) + ".jpg", output1)
 plt.imsave(outputDir + "/" + image_2.split('.')[0] + "_result_" + str(size2[0]) + "x" + str(size2[1]) + ".jpg", output2)
 
 # HEIGHT REDUCTION
-output1_rot, size1_rot = SeamCarve(image1_rot, ratio)
-output2_rot, size2_rot = SeamCarve(image2_rot, ratio)
+output1_rot, size1_rot = SeamCarve(image1_rot, ratio, image_1.split('.')[0] + '_height')
+output2_rot, size2_rot = SeamCarve(image2_rot, ratio, image_2.split('.')[0] + '_height')
 
 output1_rev = np.rot90(output1_rot, 3)
 output2_rev = np.rot90(output2_rot, 3)
