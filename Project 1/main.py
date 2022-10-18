@@ -1,6 +1,3 @@
-from email.mime import image
-import numbers
-from tokenize import Double
 import matplotlib.pyplot as plt
 import numpy as np
 import os
