@@ -35,8 +35,7 @@ def ComputeGradient(input) :
     shiftL = np.roll(input, -1, axis = 1)
 
     energy = np.abs(input - shiftD) + np.abs(input - shiftL)
-    #plt.imsave("Results/test2.jpg", energy)
-
+    
     return energy
 
 def FindSeam(input) :
@@ -93,15 +92,12 @@ def createVideo(name, size) :
 def SeamCarve(input, ratio, name):
 
     original = input.copy()
-    # Main seam carving function. This is done in three main parts: 1)
-    # computing the energy function, 2) finding optimal seam, and 3) removing
-    # the seam. The three parts are repeated until the desired size is reached.
 
-    assert (ratio <= 1), 'Increasing the size is not supported!'
+    assert (ratio <= 1)
 
     size = original.shape
 
-    for x in range(int(ratio*size[1])) :
+    for x in range(int(ratio*(size[1]))) :
         inSize = input.shape
         
         inputBW = rgb2gray(input)
@@ -120,13 +116,35 @@ def SeamCarve(input, ratio, name):
     size = (input.shape[1], input.shape[0])
     return input, size
 
-# print(sys.argv)
-# print(len(sys.argv))
+def ImageRecombination( img1, img2) :
+    energy = np.abs(rgb2gray(img1) - rgb2gray(img2))
+    
+    M = ComputeM(energy)
+    seam = FindSeam(M)
+    
+    img1_seam = img1.copy()
+    img2_seam = img2.copy()
+    
+    newImage = np.zeros((img1.shape[0], img1.shape[1], 3))
+    imageSeam = newImage.copy()
+    
+    for i in range(img1_seam.shape[0]) :
+        img1_seam[i][seam[i]] = 1
+        img2_seam[i][seam[i]] = 1
+        newImage[i] = np.concatenate((img1[i][:(seam[i])], img2[i][(seam[i]):]))
+        imageSeam[i] = newImage[i]
+        imageSeam[i][seam[i]] = 1
+        
+    plt.imsave(outputDir + "left_seam.jpg", img1_seam)
+    plt.imsave(outputDir + "right_seam.jpg", img2_seam)
+    plt.imsave(outputDir + "Combined_Result_Seam.jpg", imageSeam)
+    
+    return newImage
 
 if (len(sys.argv) != 4) :
     print("Erorr: Wrong input format")
     print("       Use this format to run the program:")
-    print("         main.py <image1> <image2> <ratio>")
+    print("         main.py <image1/left> <image2/right> <ratio>")
     raise SystemExit
 
 # Setting up the input output paths
@@ -143,15 +161,31 @@ img2_h_path = outputDir + 'Frames/' + image_2.split('.')[0] + '_height'
 
 if not os.path.exists(img1_path) :
     os.mkdir(img1_path)
+else :
+    files = glob.glob(img1_path + '/*')
+    for f in files:
+        os.remove(f)
 
 if not os.path.exists(img2_path) :
     os.mkdir(img2_path)
+else :
+    files = glob.glob(img2_path + '/*')
+    for f in files:
+        os.remove(f)
 
-if not os.path.exists(img1_h_path) :
-    os.mkdir(img1_h_path)
+# if not os.path.exists(img1_h_path) :
+#     os.mkdir(img1_h_path)
+# else :
+#     files = glob.glob(img1_h_path + '/*')
+#     for f in files:
+#         os.remove(f)
 
-if not os.path.exists(img2_h_path) :
-    os.mkdir(img2_h_path)
+# if not os.path.exists(img2_h_path) :
+#     os.mkdir(img2_h_path)
+# else :
+#     files = glob.glob(img2_h_path + '/*')
+#     for f in files:
+#         os.remove(f)
 
 image1 = plt.imread(image_1) / 255
 image2 = plt.imread(image_2) / 255
@@ -166,15 +200,21 @@ output1, size1 = SeamCarve(image1, ratio, image_1.split('.')[0])
 output2, size2 = SeamCarve(image2, ratio, image_2.split('.')[0])
 
 # Saving the results
-plt.imsave(outputDir + "/" + image_1.split('.')[0] + "_result_" + str(size1[0]) + "x" + str(size1[1]) + ".jpg", output1)
-plt.imsave(outputDir + "/" + image_2.split('.')[0] + "_result_" + str(size2[0]) + "x" + str(size2[1]) + ".jpg", output2)
+plt.imsave(outputDir + image_1.split('.')[0] + "_result_" + str(size1[0]) + "x" + str(size1[1]) + ".jpg", output1)
+plt.imsave(outputDir + image_2.split('.')[0] + "_result_" + str(size2[0]) + "x" + str(size2[1]) + ".jpg", output2)
 
-# HEIGHT REDUCTION
-output1_rot, size1_rot = SeamCarve(image1_rot, ratio, image_1.split('.')[0] + '_height')
-output2_rot, size2_rot = SeamCarve(image2_rot, ratio, image_2.split('.')[0] + '_height')
+# # HEIGHT REDUCTION
+# output1_rot, size1_rot = SeamCarve(image1_rot, ratio, image_1.split('.')[0] + '_height')
+# output2_rot, size2_rot = SeamCarve(image2_rot, ratio, image_2.split('.')[0] + '_height')
 
-output1_rev = np.rot90(output1_rot, 3)
-output2_rev = np.rot90(output2_rot, 3)
+# output1_rev = np.rot90(output1_rot, 3)
+# output2_rev = np.rot90(output2_rot, 3)
 
-plt.imsave(outputDir + "/" + image_1.split('.')[0] + "_result_" + str(size1_rot[1]) + "x" + str(size1_rot[0]) + ".jpg", output1_rev)
-plt.imsave(outputDir + "/" + image_2.split('.')[0] + "_result_" + str(size2_rot[1]) + "x" + str(size2_rot[0]) + ".jpg", output2_rev)
+# plt.imsave(outputDir + image_1.split('.')[0] + "_result_" + str(size1_rot[1]) + "x" + str(size1_rot[0]) + ".jpg", output1_rev)
+# plt.imsave(outputDir + image_2.split('.')[0] + "_result_" + str(size2_rot[1]) + "x" + str(size2_rot[0]) + ".jpg", output2_rev)
+
+if image1.shape == image2.shape :
+    combined = ImageRecombination(image1, image2)
+    plt.imsave(outputDir + "Combined_Result.jpg", combined)
+else:
+    print("Warning: Images cannot be combined because they have different dimensions")
