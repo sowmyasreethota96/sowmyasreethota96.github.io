@@ -11,15 +11,15 @@ export const SeamCarver = () => {
 
   const [imageUrl, setImageUrl] = useState(defaultImgSrc);
   const [originalDimensions, setOriginalDimensions] = useState('')
-  const [orgSize, setOrgSize] = useState<Size | null>(null)
+  const [finalSize, setFinalSize] = useState<Size | null>(null)
   const [widthInput, setWidthInput] = useState(0)
-  const [running, setRunning] = useState(true)
+  const [running, setRunning] = useState(false)
   const [done, setDone] = useState(false)
   const [seams, setSeams] = useState<Seam[] | null>(null);
   const [currImageSize, setCurrImageSize] = useState<Size | null>(null);
   const [percentage, setPercentage] = useState<number>(0);
   const [energy, setEnergy] = useState<EnergyMap | null>(null);
-  const [final, setFinal] = useState<String | null>(null)
+  const [final, setFinal] = useState<string | null>(null)
   const [originalSize, setOriginalSize] = useState<Size | null>(null);
   //const [workingImgSize, setRunningSize] = useState<Size | null>(null);
 
@@ -35,12 +35,10 @@ export const SeamCarver = () => {
     }
     const imageURL = URL.createObjectURL(files[0]);
     
-    setImageUrl(imageURL);
-    console.log(files);
+    setImageUrl(imageURL)
   }
 
   const setSize = () => {
-    console.log(imageRef)
     if (imageRef.current) {
       setOriginalDimensions(imageRef.current.width + ' x ' + imageRef.current.height);
     }
@@ -77,14 +75,19 @@ export const SeamCarver = () => {
   }
   
   const finished = () => {
-    if (canvasRef.current) {
+    const c = canvasRef.current
+    if (c) {
       const type = 'Image/png'
-      canvasRef.current.toBlob((blob) => {
+      c.toBlob((blob) => {
         if (blob) {
           const newUrl = URL.createObjectURL(blob)
           setFinal(newUrl)
           setRunning(false)
           setDone(true)
+          setFinalSize({
+            w: c.width,
+            h: c.height
+          })
         }
       }, type)
     }
@@ -92,6 +95,7 @@ export const SeamCarver = () => {
 
   const Reset = () => {
     setFinal(null);
+    setDone(false)
     setSeams(null);
     setCurrImageSize(null);
     setEnergy(null);
@@ -104,7 +108,7 @@ export const SeamCarver = () => {
     const srcImage = imageRef.current;
     if (canvas && srcImage) {
       Reset()
-      setRunning(false);
+      setRunning(true);
 
       let w = srcImage.width;
       let h = srcImage.height;
@@ -117,7 +121,6 @@ export const SeamCarver = () => {
       if (ctx) {
         ctx.drawImage(srcImage, 0, 0, w, h)
         const image = ctx.getImageData(0, 0, w, h)
-        console.log(image)
 
         const newWidth = Math.floor((widthInput * w) / 100)
 
@@ -132,25 +135,6 @@ export const SeamCarver = () => {
     }
     
   }
-
-  // type ResizeImageArgs = {
-  //   img: ImageData,
-  //   toWidth: number,
-  //   toHeight: number,
-  //   onIteration?: (args: OnIterationArgs) => Promise<void>,
-  // };
-
-  
-
-  // useEffect(() => {
-  //   if (imageRef.current) {
-  //     setOriginalDimensions(imageRef.current.width + ' x ' + imageRef.current.height);
-  //   }
-  // }, [imageUrl]);
-
-  // console.log(imageUrl);
-  // console.log(imageRef);
-  // console.log('d = ' + dimensions)
 
   return (
     <Box padding={8}>
@@ -185,7 +169,7 @@ export const SeamCarver = () => {
       <Box maxW={'600'} marginBottom='4'>
         <Flex>
           <Text marginRight={'3'} marginTop={'2'}>Width:</Text>
-          <NumberInput maxW='100px' max={100} min={0} value={widthInput} onChange={(e) => {setWidthInput(Number(e))}}>
+          <NumberInput maxW='100px' max={100} min={0} value={widthInput} isDisabled={running} onChange={(e) => {setWidthInput(Number(e))}}>
             <NumberInputField />
             <NumberInputStepper>
               <NumberIncrementStepper />
@@ -198,6 +182,7 @@ export const SeamCarver = () => {
             focusThumbOnChange={false}
             value={widthInput}
             onChange={(e) => {setWidthInput(e)}}
+            isDisabled={running}
           >
             <SliderTrack>
               <SliderFilledTrack />
@@ -207,10 +192,20 @@ export const SeamCarver = () => {
         </Flex>
         
       </Box>
-      <Box hidden={running}>
+      <Box hidden={!running}>
         <Text fontSize={'3xl'}><b>Rendering Image: </b></Text>
         <canvas ref={canvasRef}/>
       </Box>
+
+      {done && final ?
+        <Box>
+          <Text fontSize={'3xl'}><b>Resized Image: </b></Text>
+          <Image src={final}/>
+          <Text><b>Resized Image Dimensions (W x H):</b> {finalSize?.w} x {finalSize?.h}</Text>
+        </Box> :
+        <Box></Box>
+      }
+      
       <Box>
         <Text fontSize={'3xl'}><b>Original Image:</b></Text>
         <Image marginBottom={'4'} ref={imageRef} src={imageUrl} onLoad={setSize}/>
