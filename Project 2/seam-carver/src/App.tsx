@@ -25,7 +25,7 @@ export const App = () => {
   <ChakraProvider theme={theme}>
     <Box textAlign="center" fontSize="xl">
       <Text color={"#660000"} fontSize="4xl" textAlign={'center'}>
-        <b>CSCE 646 Project 2 - Seam Carver</b>
+        <b>CSCE 646 Final Project - Seam Carver and Seam Stitcher</b>
       </Text>
       <Text>
         <b>Reuben Chidubem Tabansi</b>
